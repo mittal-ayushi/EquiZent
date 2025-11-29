@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MeetMid Business — Location Intelligence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1400px;
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      margin: 0 0 8px;
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: #9ca3af;
+      font-size: 16px;
+      margin: 0;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .tab.active {
+      color: #06b6d4;
+      border-bottom-color: #06b6d4;
+    }
+
+    .tab:hover {
+      color: #e5e7eb;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 20px;
+      margin: 0 0 16px;
+      color: #06b6d4;
+    }
+
+    .upload-area {
+      border: 2px dashed rgba(6, 182, 212, 0.4);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(6, 182, 212, 0.05);
+    }
+
+    .upload-area:hover {
+      border-color: #06b6d4;
+      background: rgba(6, 182, 212, 0.1);
+    }
+
+    .upload-area input {
+      display: none;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+      color: #020617;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: rgba(6, 182, 212, 0.2);
+      color: #06b6d4;
+      border: 1px solid #06b6d4;
+    }
+
+    .map-container {
+      width: 100%;
+      height: 500px;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #22c55e;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #9ca3af;
+    }
+
+    .suggestion-card {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .suggestion-card h3 {
+      font-size: 18px;
+      color: #22c55e;
+      margin: 0 0 12px;
+    }
+
+    .suggestion-card .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .suggestion-card .metric:last-child {
+      border-bottom: none;
+    }
+
+    .progress {
+      margin: 16px 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #06b6d4);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .muted {
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .success {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #86efac;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .spinner {
+      border: 3px solid rgba(6, 182, 212, 0.3);
+      border-top-color: #06b6d4;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .login-form {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(15, 23, 42, 0.6);
+      color: white;
+      font-size: 14px;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #06b6d4;
+    }
+
+    .template-download {
+      display: inline-block;
+      color: #06b6d4;
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .template-download:hover {
+      text-decoration: underline;
+    }
+
+    .cluster-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .cluster-1 { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .cluster-2 { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .cluster-3 { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+    .cluster-4 { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .cluster-5 { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
+
+    .settings-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .settings-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>MeetMid Business</h1>
+      <p>Location Intelligence for Smart Expansion & Marketing</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(event,'login')">Login</button>
+      <button class="tab" id="dashboardTab" onclick="switchTab(event,'dashboard')" style="display:none;">Dashboard</button>
+      <button class="tab" id="analysisTab" onclick="switchTab(event,'analysis')" style="display:none;">Analysis</button>
+    </div>
+
+    <!-- Login Section -->
+    <div id="loginSection" class="section active">
+      <div class="card">
+        <div class="login-form">
+          <h2>Business Login</h2>
+          <div class="form-group">
+            <label>Business Email</label>
+            <input type="email" id="businessEmail" placeholder="business@example.com" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="businessPassword" placeholder="Enter password" />
+          </div>
+          <button class="btn btn-primary" style="width:100%;" onclick="handleLogin()">Login to Dashboard</button>
+          <p class="muted" style="text-align:center;margin-top:16px;">
+            Demo: Use any email and password "demo123"
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboardSection" class="section">
+      <div id="dashboardMessage"></div>
+
+      <!-- Upload Customers -->
+      <div class="card">
+        <h2>📍 Upload Customer Addresses</h2>
+        <p class="muted">Upload an Excel/CSV file with customer locations</p>
+        <a href="#" class="template-download" onclick="downloadTemplate('customers'); return false;">⬇️ Download Sample Template</a>
+        
+        <div class="upload-area" onclick="document.getElementById('customerFile').click()">
+          <input type="file" id="customerFile" accept=".xlsx,.xls,.csv" onchange="handleCustomerUpload(event)" />
+          <div style="font-size:48px;margin-bottom:12px;">📊</div>
+          <div style="font-weight:600;margin-bottom:4px;">Click to upload customer data</div>
+          <div class="muted">Excel or CSV with columns: Name, Address, City, Pincode</div>
+        </div>
+        
+        <div id="customerStatus"></div>
+      </div>
+
+      <!-- Upload Stores -->
+      <div class="card">
+        <h2>🏪 Upload Existing Store Locations</h2>
+        <p class="muted">Upload your current store locations (optional but recommended)</p>
+        <a href="#" class="template-download" onclick="downloadTemplate('stores'); return false;">⬇️ Download Sample Template</a>
+        
+        <div class="upload-area" onclick="document.getElementById('storeFile').click()">
+          <input type="file" id="storeFile" accept=".xlsx,.xls,.csv" onchange="handleStoreUpload(event)" />
+          <div style="font-size:48px;margin-bottom:12px;">🏬</div>
+          <div style="font-weight:600;margin-bottom:4px;">Click to upload store locations</div>
+          <div class="muted">Excel or CSV with columns: StoreName, Address, City, Pincode</div>
+        </div>
+        
+        <div id="storeStatus"></div>
+      </div>
+
+      <!-- Analysis Settings -->
+      <div class="card">
+        <h2>⚙️ Analysis Settings</h2>
+        <div class="settings-row">
+          <div class="form-group">
+            <label>Number of new locations to test</label>
+            <input type="number" id="kInput" min="1" max="10" value="3" />
+            <p class="muted" style="margin-top:8px;">Recommended: 2-5 for city-level data</p>
+          </div>
+          <div class="form-group">
+            <label>Minimum customers per cluster</label>
+            <input type="number" id="minCustomersInput" min="5" max="100" value="20" />
+            <p class="muted" style="margin-top:8px;">Only suggest locations with enough demand</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analyze Button -->
+      <button class="btn btn-primary" id="analyzeBtn" style="width:100%;padding:16px;font-size:16px;" onclick="runAnalysis()" disabled>
+        🔍 Analyze & Generate Insights
+      </button>
+    </div>
+
+    <!-- Analysis Section -->
+    <div id="analysisSection" class="section">
+      <div id="analysisLoading" style="text-align:center;padding:40px;display:none;">
+        <div class="spinner" style="width:48px;height:48px;margin:0 auto 16px;"></div>
+        <div style="font-size:18px;color:#9ca3af;">Analyzing your data with AI clustering & feasibility scoring...</div>
+      </div>
+
+      <div id="analysisResults" style="display:none;">
+        <!-- Map -->
+        <div class="card">
+          <h2>📍 Customer Distribution Map</h2>
+          <div class="map-container">
+            <div id="map"></div>
+          </div>
+          <p class="muted" style="margin:0;">
+            🔵 Blue = Customers | 🟢 Green = Existing Stores | ⭐ Gold = Suggested New Locations
+          </p>
+        </div>
+
+        <!-- Stats -->
+        <div class="card">
+          <h2>📊 Key Metrics</h2>
+          <div class="stats-grid" id="statsGrid"></div>
+        </div>
+
+        <!-- Suggestions -->
+        <div class="card">
+          <h2>💡 Recommended Store Locations (Ranked by Priority)</h2>
+          <div id="suggestionsContainer"></div>
+        </div>
+
+        <!-- Clusters -->
+        <div class="card">
+          <h2>🎯 Customer Clusters</h2>
+          <div id="clustersContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    const LATLONG_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJUb2tlbklEIjoiMzNmMjY3MTgtMjRiOC00NTFlLWJlMGYtOGZmMzA1ZDI3ZDk5IiwiQ2xpZW50SUQiOiI2YTA3ZDNkMC01MTNkLTRjMTMtYjRjMi04NTdiY2YzNDJiNWIiLCJCdW5pdElEIjozMCwiQXBwTmFtZSI6InBlcyBoYWNrYXRob24gbWFwcy1yZWltYWdpbmVkIiwiQXBwSUQiOjE4Mzk1LCJUaW1lU3RhbXAiOiIyMDI1LTExLTI4IDE3OjEyOjUyIiwiZXhwIjoxNzY0NTIyNzcyfQ.q5AqBLmiB3KlPMt58O5N767uBJ6qNxGmt6X2aYWtrbI";
+
+    let map = null;
+    let customers = [];
+    let stores = [];
+    let suggestions = [];
+    let clusters = [];
+
+    // Cache for geocoding
+    const geocodeCache = new Map();
+
+    // Tab switching
+    function switchTab(e, tabName) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      
+      document.getElementById(tabName + 'Section').classList.add('active');
+      e.target.classList.add('active');
+    }
+
+    // Login
+    function handleLogin() {
+      const email = document.getElementById('businessEmail').value;
+      const password = document.getElementById('businessPassword').value;
+
+      if (!email || !password) {
+        alert('Please enter email and password');
+        return;
+      }
+
+      if (password !== 'demo123') {
+        alert('Demo password is: demo123');
+        return;
+      }
+
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('dashboardSection').style.display = 'block';
+      document.getElementById('dashboardTab').style.display = 'block';
+      document.getElementById('analysisTab').style.display = 'block';
+      
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('dashboardTab').classList.add('active');
+
+      document.getElementById('dashboardMessage').innerHTML = `
+        <div class="success">
+          ✅ Welcome back, ${email.split('@')[0]}! Upload your data to get started.
+        </div>
+      `;
+    }
+
+    // Download templates
+    function downloadTemplate(type) {
+      let csv = '';
+      if (type === 'customers') {
+        csv = 'CustomerID,Name,Address,City,Pincode\n';
+        csv += '1,Rahul Sharma,123 MG Road,Bangalore,560001\n';
+        csv += '2,Priya Patel,456 Koramangala 5th Block,Bangalore,560095\n';
+        csv += '3,Amit Kumar,789 Whitefield Main Road,Bangalore,560066\n';
+        csv += '4,Sneha Reddy,321 Jayanagar 4th Block,Bangalore,560011\n';
+        csv += '5,Karthik Iyer,654 Indiranagar 100 Feet Road,Bangalore,560038\n';
+      } else {
+        csv = 'StoreID,StoreName,Address,City,Pincode\n';
+        csv += '1,Main Store,100 Brigade Road,Bangalore,560001\n';
+        csv += '2,Koramangala Branch,50 Koramangala 5th Block,Bangalore,560095\n';
+        csv += '3,Whitefield Hub,200 Whitefield Main Road,Bangalore,560066\n';
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `meetmid_${type}_template.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Parse Excel/CSV
+    function parseFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(sheet);
+            resolve(json);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // Geocode with caching
+    async function geocode(address) {
+      if (geocodeCache.has(address)) {
+        return geocodeCache.get(address);
+      }
+
+      try {
+        const url = `https://apihub.latlong.ai/v4/geocode.json?address=${encodeURIComponent(address)}`;
+        const res = await fetch(url, {
+          headers: { "X-Authorization-Token": LATLONG_TOKEN }
+        });
+
+        if (!res.ok) {
+          console.warn(`Geocoding failed for: ${address}`);
+          return null;
+        }
+
+        const data = await res.json();
+        if (data.status !== "success" || !data.data) {
+          console.warn(`Location not found: ${address}`);
+          return null;
+        }
+
+        const result = {
+          lat: parseFloat(data.data.latitude),
+          lon: parseFloat(data.data.longitude),
+          formatted: data.data.address || address
+        };
+
+        geocodeCache.set(address, result);
+        return result;
+      } catch (err) {
+        console.error("Geocode error:", err);
+        return null;
+      }
+    }
+
+    // Batch geocode
+    async function batchGeocode(addresses, progressCallback) {
+      const chunkSize = 5;
+      const results = [];
+      
+      for (let i = 0; i < addresses.length; i += chunkSize) {
+        const chunk = addresses.slice(i, i + chunkSize);
+        const chunkResults = await Promise.all(chunk.map(addr => geocode(addr)));
+        results.push(...chunkResults);
+        
+        if (progressCallback) {
+          const progress = Math.min(100, ((i + chunk.length) / addresses.length) * 100);
+          progressCallback(progress);
+        }
+      }
+      
+      return results;
+    }
+
+    // Reverse geocode for feasibility scoring
+    async function reverseGeocode(lat, lon) {
+      try {
+        const url = `https://apihub.latlong.ai/v4/reverse_geocode.json?latitude=${lat}&longitude=${lon}`;
+        const res = await fetch(url, {
+          headers: { "X-Authorization-Token": LATLONG_TOKEN }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.status !== "success" || !data.data) return null;
+
+        const address = data.data.address || "";
+        const landmark = data.data.landmark || "";
+        const text = (address + " " + landmark).toLowerCase();
+
+        // Heuristic scoring for feasibility
+        let score = 50; // neutral
+        if (text.includes("mall") || text.includes("market") || text.includes("main road") || text.includes("commercial") || text.includes("business")) {
+          score += 30;
+        }
+        if (text.includes("residential") || text.includes("apartment") || text.includes("layout") || text.includes("colony")) {
+          score -= 20;
+        }
+        if (text.includes("industrial") || text.includes("factory")) {
+          score -= 10;
+        }
+        score = Math.max(0, Math.min(100, score));
+
+        let label = "Medium";
+        if (score >= 70) label = "High";
+        else if (score <= 40) label = "Low";
+
+        return {
+          address: data.data.address,
+          landmark: data.data.landmark,
+          feasibilityScore: score,
+          feasibilityLabel: label
+        };
+      } catch (e) {
+        console.error("Reverse geocode error", e);
+        return null;
+      }
+    }
+
+    // Handle customer upload
+    async function handleCustomerUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusDiv = document.getElementById('customerStatus');
+      statusDiv.innerHTML = `
+        <div class="progress">
+          <div style="display:flex;align-items:center;margin-bottom:8px;">
+            <span class="spinner"></span>
+            <span id="customerStatusText">Parsing file...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="customerProgress" style="width:0%;"></div>
+          </div>
+        </div>
+      `;
+
+      try {
+        const data = await parseFile(file);
+
+        document.getElementById('customerStatusText').textContent = 'Geocoding addresses with Latlong...';
+
+        const addresses = data.map(row => 
+          `${row.Address || ''}, ${row.City || ''}, ${row.Pincode || ''}`.trim()
+        );
+
+        const locations = await batchGeocode(addresses, (progress) => {
+          document.getElementById('customerProgress').style.width = progress + '%';
+        });
+
+        customers = [];
+        data.forEach((row, i) => {
+          if (locations[i]) {
+            customers.push({
+              id: row.CustomerID || i + 1,
+              name: row.Name || `Customer ${i + 1}`,
+              address: addresses[i],
+              ...locations[i]
+            });
+          }
+        });
+
+        statusDiv.innerHTML = `
+          <div class="success">
+            ✅ Successfully processed ${customers.length}/${data.length} customers with Latlong geocoding
+            ${customers.length < data.length ? `<br><small>(${data.length - customers.length} addresses could not be geocoded)</small>` : ''}
+          </div>
+        `;
+
+        checkAnalyzeButton();
+      } catch (err) {
+        statusDiv.innerHTML = `
+          <div class="error">
+            ❌ Error processing file: ${err.message}
+          </div>
+        `;
+      }
+    }
+
+    // Handle store upload
+    async function handleStoreUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusDiv = document.getElementById('storeStatus');
+      statusDiv.innerHTML = `
+        <div class="progress">
+          <div style="display:flex;align-items:center;margin-bottom:8px;">
+            <span class="spinner"></span>
+            <span id="storeStatusText">Parsing file...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="storeProgress" style="width:0%;"></div>
+          </div>
+        </div>
+      `;
+
+      try {
+        const data = await parseFile(file);
+
+        document.getElementById('storeStatusText').textContent = 'Geocoding store addresses...';
+
+        const addresses = data.map(row => 
+          `${row.Address || ''}, ${row.City || ''}, ${row.Pincode || ''}`.trim()
+        );
+
+        const locations = await batchGeocode(addresses, (progress) => {
+          document.getElementById('storeProgress').style.width = progress + '%';
+        });
+
+        stores = [];
+        data.forEach((row, i) => {
+          if (locations[i]) {
+            stores.push({
+              id: row.StoreID || i + 1,
+              name: row.StoreName || `Store ${i + 1}`,
+              address: addresses[i],
+              ...locations[i]
+            });
+          }
+        });
+
+        statusDiv.innerHTML = `
+          <div class="success">
+            ✅ Successfully processed ${stores.length}/${data.length} stores with Latlong geocoding
+          </div>
+        `;
+
+        checkAnalyzeButton();
+      } catch (err) {
+        statusDiv.innerHTML = `
+          <div class="error">
+            ❌ Error processing file: ${err.message}
+          </div>
+        `;
+      }
+    }
+
+    function checkAnalyzeButton() {
+      const btn = document.getElementById('analyzeBtn');
+      if (customers.length > 0) {
+        btn.disabled = false;
+      }
+    }
+
+    // Distance calculation
+    function calculateDistance(p1, p2) {
+      const R = 6371;
+      const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+      const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    // K-means clustering
+    function simpleKMeans(points, k) {
+      const centroids = [];
+      for (let i = 0; i < k; i++) {
+        centroids.push(points[Math.floor(Math.random() * points.length)]);
+      }
+
+      let iterations = 0;
+      const maxIterations = 10;
+
+      while (iterations < maxIterations) {
+        const assignments = [];
+        points.forEach(point => {
+          let minDist = Infinity;
+          let cluster = 0;
+          centroids.forEach((centroid, idx) => {
+            const dist = calculateDistance(point, centroid);
+            if (dist < minDist) {
+              minDist = dist;
+              cluster = idx;
+            }
+          });
+          assignments.push(cluster);
+        });
+
+        const newCentroids = [];
+        for (let i = 0; i < k; i++) {
+          const clusterPoints = points.filter((_, idx) => assignments[idx] === i);
+          if (clusterPoints.length > 0) {
+            const avgLat = clusterPoints.reduce((sum, p) => sum + p.lat, 0) / clusterPoints.length;
+            const avgLon = clusterPoints.reduce((sum, p) => sum + p.lon, 0) / clusterPoints.length;
+            newCentroids.push({ lat: avgLat, lon: avgLon });
+          } else {
+            newCentroids.push(centroids[i]);
+          }
+        }
+
+        centroids.splice(0, centroids.length, ...newCentroids);
+        iterations++;
+      }
+
+      return {
+        centroids,
+        assignments: points.map((point) => {
+          let minDist = Infinity;
+          let cluster = 0;
+          centroids.forEach((centroid, i) => {
+            const dist = calculateDistance(point, centroid);
+            if (dist < minDist) {
+              minDist = dist;
+              cluster = i;
+            }
+          });
+          return cluster;
+        })
+      };
+    }
+
+    // Run analysis
+    async function runAnalysis() {
+      document.getElementById('analysisLoading').style.display = 'block';
+      document.getElementById('analysisResults').style.display = 'none';
+
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(t => t.classList.remove('active'));
+      document.getElementById('analysisTab').classList.add('active');
+      document.getElementById('analysisSection').classList.add('active');
+      document.getElementById('dashboardSection').classList.remove('active');
+      document.getElementById('loginSection').classList.remove('active');
+
+      try {
+        // Get user settings
+        let k = parseInt(document.getElementById('kInput').value, 10);
+        if (isNaN(k) || k < 1) k = 2;
+        k = Math.min(Math.max(k, 1), 10);
+        if (customers.length < k) {
+          k = customers.length;
+        }
+
+        const minCustomers = parseInt(document.getElementById('minCustomersInput').value, 10) || 20;
+        const minDistFromStoreKm = 1.0;
+
+        // Cluster customers
+        const clusterResult = simpleKMeans(customers, k);
+        
+        clusters = clusterResult.centroids.map((centroid, idx) => {
+          const clusterCustomers = customers.filter((_, i) => clusterResult.assignments[i] === idx);
+          return {
+            id: idx + 1,
+            centroid,
+            customers: clusterCustomers,
+            count: clusterCustomers.length
+          };
+        });
+
+        // Build suggestions with business logic
+        suggestions = clusters.map(cluster => {
+          let nearestStore = null;
+          let nearestStoreDist = Infinity;
+
+          if (stores.length > 0) {
+            stores.forEach(store => {
+              const dist = calculateDistance(cluster.centroid, store);
+              if (dist < nearestStoreDist) {
+                nearestStoreDist = dist;
+                nearestStore = store;
+              }
+            });
+          }
+
+          const avgDistToCluster = cluster.customers.reduce((sum, customer) => {
+            return sum + calculateDistance(customer, cluster.centroid);
+          }, 0) / cluster.customers.length;
+
+          let rawImpact = 0;
+          if (stores.length > 0 && nearestStoreDist > 0 && isFinite(nearestStoreDist)) {
+            rawImpact = ((nearestStoreDist - avgDistToCluster) / nearestStoreDist * 100);
+          }
+
+          const hasEnoughCustomers = cluster.count >= minCustomers;
+          const farFromExisting = !nearestStore || nearestStoreDist >= minDistFromStoreKm;
+
+          return {
+            clusterNumber: cluster.id,
+            location: cluster.centroid,
+            customerCount: cluster.count,
+            avgDistance: avgDistToCluster,
+            nearestStore,
+            nearestStoreDist,
+            rawImpact,
+            hasEnoughCustomers,
+            farFromExisting
+          };
+        });
+
+        // Enrich with reverse geocode for feasibility
+        for (let s of suggestions) {
+          const info = await reverseGeocode(s.location.lat, s.location.lon);
+          if (info) {
+            s.address = info.address;
+            s.landmark = info.landmark;
+            s.feasibilityScore = info.feasibilityScore;
+            s.feasibilityLabel = info.feasibilityLabel;
+          } else {
+            s.feasibilityScore = 50;
+            s.feasibilityLabel = "Medium";
+          }
+        }
+
+        // Calculate priority scores
+        for (let s of suggestions) {
+          const distScore = isFinite(s.rawImpact) ? Math.max(0, s.rawImpact) : 0;
+          const feasScore = s.feasibilityScore || 50;
+          s.priorityScore = 0.6 * distScore + 0.4 * feasScore;
+        }
+
+        // Sort by priority
+        suggestions.sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0));
+
+        await renderAnalysis();
+      } catch (err) {
+        console.error(err);
+        alert('Analysis failed: ' + err.message);
+      }
+
+      document.getElementById('analysisLoading').style.display = 'none';
+      document.getElementById('analysisResults').style.display = 'block';
+    }
+
+    // Render analysis results
+    async function renderAnalysis() {
+      if (map) {
+        map.remove();
+      }
+
+      map = L.map('map', {
+        preferCanvas: true,
+        zoomControl: true
+      }).setView([12.9716, 77.5946], 11);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap | Powered by Latlong.ai',
+        maxZoom: 19
+      }).addTo(map);
+
+      const bounds = [];
+
+      // Add customer markers
+      customers.forEach(customer => {
+        const marker = L.circleMarker([customer.lat, customer.lon], {
+          radius: 5,
+          fillColor: '#3b82f6',
+          color: '#fff',
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.8
+        }).addTo(map);
+        marker.bindPopup(`<b>${customer.name}</b><br><small>${customer.address}</small>`);
+        bounds.push([customer.lat, customer.lon]);
+      });
+
+      // Add store markers
+      stores.forEach(store => {
+        const marker = L.marker([store.lat, store.lon], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).addTo(map);
+        marker.bindPopup(`<b>🏪 ${store.name}</b><br><small>${store.address}</small>`);
+        bounds.push([store.lat, store.lon]);
+      });
+
+      // Add suggestion markers
+      suggestions.forEach((suggestion, idx) => {
+        const marker = L.marker([suggestion.location.lat, suggestion.location.lon], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).addTo(map);
+        marker.bindPopup(`<b>⭐ Suggested Location ${idx + 1}</b><br>Priority: ${(suggestion.priorityScore || 0).toFixed(1)}<br>${suggestion.customerCount} customers nearby`);
+        bounds.push([suggestion.location.lat, suggestion.location.lon]);
+      });
+
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+
+      // Stats
+      const avgCustomerDistance = suggestions.length
+        ? suggestions.reduce((sum, s) => sum + s.avgDistance, 0) / suggestions.length
+        : 0;
+      const totalCustomers = customers.length;
+      const existingStores = stores.length;
+
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value">${totalCustomers}</div>
+          <div class="stat-label">Total Customers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${existingStores}</div>
+          <div class="stat-label">Existing Stores</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${clusters.length}</div>
+          <div class="stat-label">Customer Clusters</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${avgCustomerDistance.toFixed(1)} km</div>
+          <div class="stat-label">Avg Distance to Suggested Stores</div>
+        </div>
+      `;
+
+      // Suggestions UI
+      document.getElementById('suggestionsContainer').innerHTML = suggestions.map((s, idx) => `
+        <div class="suggestion-card">
+          <h3>⭐ Location ${idx + 1}: Cluster ${s.clusterNumber} ${idx === 0 ? '(🏆 Top Pick)' : ''}</h3>
+          <div class="metric">
+            <span class="muted">Priority Score</span>
+            <strong style="color:#22c55e;font-size:18px;">${(s.priorityScore || 0).toFixed(1)} / 100</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Customer Reach</span>
+            <strong>${s.customerCount} customers</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Average Travel Distance</span>
+            <strong>${s.avgDistance.toFixed(2)} km</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Zoning / Feasibility</span>
+            <strong style="color:${s.feasibilityLabel === 'High' ? '#22c55e' : s.feasibilityLabel === 'Low' ? '#f97316' : '#fcd34d'};">
+              ${s.feasibilityLabel || 'Medium'}
+              ${typeof s.feasibilityScore === 'number' ? `(${s.feasibilityScore.toFixed(0)} / 100)` : ''}
+            </strong>
+          </div>
+          ${s.address ? `
+          <div class="metric">
+            <span class="muted">Area Snapshot</span>
+            <strong>${s.address.split(',').slice(0, 2).join(', ')}</strong>
+          </div>
+          ` : ''}
+          <div class="metric">
+            <span class="muted">Demand Check</span>
+            <strong style="color:${s.hasEnoughCustomers ? '#22c55e' : '#f97316'};">
+              ${s.hasEnoughCustomers ? '✅ Sufficient customer density' : '⚠️ Low customer count'}
+            </strong>
+          </div>
+          ${s.nearestStore ? `
+          <div class="metric">
+            <span class="muted">Cannibalization Risk</span>
+            <strong style="color:${s.farFromExisting ? '#22c55e' : '#f97316'};">
+              ${s.farFromExisting ? '✅ Low (far from existing store)' : '⚠️ High (too close to existing)'}
+            </strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Nearest Existing Store</span>
+            <strong>${s.nearestStore.name} (${s.nearestStoreDist.toFixed(2)} km away)</strong>
+          </div>
+          ` : ''}
+          <div class="metric">
+            <span class="muted">Coordinates</span>
+            <a href="https://www.google.com/maps?q=${s.location.lat},${s.location.lon}" target="_blank" style="color:#06b6d4;">
+              ${s.location.lat.toFixed(4)}, ${s.location.lon.toFixed(4)} → View on Maps
+            </a>
+          </div>
+        </div>
+      `).join('');
+
+      // Clusters UI
+      document.getElementById('clustersContainer').innerHTML = clusters.map(c => `
+        <div style="margin-bottom:16px;padding:16px;background:rgba(15,23,42,0.4);border-radius:12px;">
+          <div style="display:flex;align-items:center;margin-bottom:12px;">
+            <span class="cluster-badge cluster-${c.id}">Cluster ${c.id}</span>
+            <span style="color:#9ca3af;">${c.count} customers</span>
+          </div>
+          <div class="muted">
+            Center: ${c.centroid.lat.toFixed(4)}, ${c.centroid.lon.toFixed(4)}
+          </div>
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
