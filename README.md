@@ -1,2 +1,1 @@
-# EquiZent
-..
+Equizent is a comprehensive geospatial intelligence platform that solves real-world location problems for both personal and business use cases. Built during a hackathon, it has evolved into two distinct products serving different needs.
