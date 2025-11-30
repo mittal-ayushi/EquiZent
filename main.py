@@ -634,8 +634,9 @@ def shop_insights(image_path: str, lat: float, lon: float):
 
 
 if __name__ == "__main__":
-    shop_insights("ay.jpg", 12.936713789462031, 77.7487147310)
+    shop_insights("sample.jpg", 12.936713789462031, 77.7487147310)
     #shop_insights("akk.jpg", 12.9556, 77.7286)
 
 # Install: pip install opencv-python fuzzywuzzy python-Levenshtein requests
+
 # Pure CV2 OCR - no external ML models needed!
